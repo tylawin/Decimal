@@ -1,4 +1,4 @@
-# Decimal Type - Desired Specs
+# Decimal Specs
 ```
 - Behave like built in type
 - Header only library
@@ -39,5 +39,5 @@ See LICENSE file for details.
 # Todo
 ```
 operator%
-more decimal digits (test mult div etc. edge cases...)
+test more edge cases...
 ```

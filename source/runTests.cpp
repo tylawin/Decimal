@@ -21,12 +21,14 @@ limitations under the License.
 
 using namespace tylawin::DataTypes;
 
+#define DASSERT(expr, msg) if(!(expr)) throw std::runtime_error(__FILE__ ":" STR__LINE__ "- expr(" #expr ")  msg(" + (msg) + ")")
+
 void decimalUnitTests()
 {
 	assert(Decimal(0).asString() == std::string("0"));
 	assert(Decimal(222).asString() == std::string("222"));
 	assert(Decimal(-222).asString() == std::string("-222"));
-	assert(Decimal(222.222L).asString() == std::string("222.222"));
+	DASSERT(Decimal(222.222L).asString() == std::string("222.222"), Decimal(222.222L).asString());
 	assert(Decimal(-222.222L).asString() == std::string("-222.222"));
 	assert(Decimal("0").asString() == std::string("0"));
 	assert(Decimal("1").asString() == std::string("1"));
@@ -149,16 +151,16 @@ void decimalUnitTests()
 	assert((Decimal("1") * Decimal("0")).asString() == std::string("0"));
 	assert((Decimal("0") * Decimal("1")).asString() == std::string("0"));
 	assert((Decimal("1") * Decimal("1")).asString() == std::string("1"));
-	assert((Decimal("1.1") * Decimal("0")).asString() == std::string("0"));
+	DASSERT((Decimal("1.1") * Decimal("0")).asString() == std::string("0"), (Decimal("1.1") * Decimal("0")).asString());
 	assert((Decimal("0") * Decimal("1.1")).asString() == std::string("0"));
-	assert((Decimal("1.1") * Decimal("1.1")).asString() == std::string("1.21"));
+	DASSERT((Decimal("1.1") * Decimal("1.1")).asString() == std::string("1.21"), (Decimal("1.1") * Decimal("1.1")).asString());
 	assert((Decimal("-1") * Decimal("0")).asString() == std::string("0"));
 	assert((Decimal("0") * Decimal("-1")).asString() == std::string("0"));
 	assert((Decimal("-1") * Decimal("-1")).asString() == std::string("1"));
 	assert((Decimal("-1.1") * Decimal("0")).asString() == std::string("0"));
 	assert((Decimal("0") * Decimal("-1.1")).asString() == std::string("0"));
 	assert((Decimal("-1.1") * Decimal("-1.1")).asString() == std::string("1.21"));
-	assert((Decimal("1.9") * Decimal("1.9")).asString() == std::string("3.61"));
+	DASSERT((Decimal("1.9") * Decimal("1.9")).asString() == std::string("3.61"), (Decimal("1.9") * Decimal("1.9")).asString());
 	assert((Decimal("1.9") * Decimal("-1.9")).asString() == std::string("-3.61"));
 	assert((Decimal("-1.9") * Decimal("1.9")).asString() == std::string("-3.61"));
 	assert((Decimal("-1.9") * Decimal("-1.9")).asString() == std::string("3.61"));
@@ -166,27 +168,27 @@ void decimalUnitTests()
 	assert((Decimal("1.5") * Decimal("-1.9")).asString() == std::string("-2.85"));
 	assert((Decimal("-1.9") * Decimal("1.5")).asString() == std::string("-2.85"));
 	assert((Decimal("-1.5") * Decimal("1.9")).asString() == std::string("-2.85"));
-	assert((Decimal("1.99999999") * Decimal("1.99999999")).asString() == std::string("3.99999996"));
-	assert((Decimal("1.99999999") * Decimal("-1.99999999")).asString() == std::string("-3.99999996"));
-	assert((Decimal("-1.99999999") * Decimal("1.99999999")).asString() == std::string("-3.99999996"));
-	assert((Decimal("-1.99999999") * Decimal("-1.99999999")).asString() == std::string("3.99999996"));
+	assert((Decimal("1.9999999999999999999") * Decimal("1.9999999999999999999")).asString() == std::string("3.9999999999999999996"));
+	assert((Decimal("1.9999999999999999999") * Decimal("-1.9999999999999999999")).asString() == std::string("-3.9999999999999999996"));
+	assert((Decimal("-1.9999999999999999999") * Decimal("1.9999999999999999999")).asString() == std::string("-3.9999999999999999996"));
+	assert((Decimal("-1.9999999999999999999") * Decimal("-1.9999999999999999999")).asString() == std::string("3.9999999999999999996"));
 
 	assert((Decimal("0") / Decimal("1")).asString() == std::string("0"));
 	assert((Decimal("1") / Decimal("1")).asString() == std::string("1"));
 	assert((Decimal("3") / Decimal("1")).asString() == std::string("3"));
-	assert((Decimal("1") / Decimal("3")).asString() == std::string("0.33333333"));
-	assert((Decimal("1") / Decimal("-3")).asString() == std::string("-0.33333333"));
-	assert((Decimal("4") / Decimal("3")).asString() == std::string("1.33333333"));
-	assert((Decimal("-4") / Decimal("3")).asString() == std::string("-1.33333333"));
+	assert((Decimal("1") / Decimal("3")).asString() == std::string("0.3333333333333333333"));
+	assert((Decimal("1") / Decimal("-3")).asString() == std::string("-0.3333333333333333333"));
+	assert((Decimal("4") / Decimal("3")).asString() == std::string("1.3333333333333333333"));
+	assert((Decimal("-4") / Decimal("3")).asString() == std::string("-1.3333333333333333333"));
 	assert((Decimal("1.3") / Decimal("1")).asString() == std::string("1.3"));
 	assert((Decimal("-1.3") / Decimal("-1")).asString() == std::string("1.3"));
 	assert((Decimal("1.3") / Decimal("1.3")).asString() == std::string("1"));
 	assert((Decimal("-1.3") / Decimal("1.3")).asString() == std::string("-1"));
 	assert((Decimal("1") / Decimal("0.5")).asString() == std::string("2"));
 	assert((Decimal("1") / Decimal("-0.5")).asString() == std::string("-2"));
-	assert((Decimal("5.55555555") / Decimal("6")).asString() == std::string("0.92592592"));
-	assert((Decimal("6") / Decimal("5.55555555")).asString() == std::string("1.08"));
-	assert((Decimal("7.5555") / Decimal("3.3333")).asString() == std::string("2.26667266"));
+	DASSERT((Decimal("5.55555555") / Decimal("6")).asString() == std::string("0.925925925"), (Decimal("5.55555555") / Decimal("6")).asString());
+	DASSERT((Decimal("6") / Decimal("5.55555555")).asString() == std::string("1.080000001080000001"), (Decimal("6") / Decimal("5.55555555")).asString());
+	DASSERT((Decimal("7.5555") / Decimal("3.3333")).asString() == std::string("2.2666726667266672666"), (Decimal("7.5555") / Decimal("3.3333")).asString());
 
 	Decimal t1, t2;
 

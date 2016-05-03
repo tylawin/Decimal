@@ -16,6 +16,8 @@ limitations under the License.
 
 #pragma once
 
+#include <iomanip>
+#include <limits>
 #include <math.h>
 #include <stdexcept>
 #include <string>
@@ -25,9 +27,14 @@ limitations under the License.
 #include <codecvt>
 #endif
 
+#include <boost/multiprecision/cpp_int.hpp>
+
 #define PREPROCESSOR_STRINGIZE_A(x) #x
 #define PREPROCESSOR_STRINGIZE(x) PREPROCESSOR_STRINGIZE_A(x)
 #define STR__LINE__ PREPROCESSOR_STRINGIZE(__LINE__)
+
+#define fractionDenominator_ 10000000000000000000ULL
+#define maxValue_ 9999999999999999999ULL
 
 namespace tylawin
 {
@@ -35,8 +42,21 @@ namespace tylawin
 	{
 		class Decimal
 		{
+		private:
+			//link errors on RPI
+			//static const uint64_t fractionDenominator_ = pow(10, DECIMAL_FRACTION_DIGITS);
+			//static const uint64_t maxValue_ = pow(10, DECIMAL_FRACTION_DIGITS)-1;
+
 		public:
+			enum
+			{
+				FRACTION_DIGITS = 19
+			};
+
 			Decimal() : positive_(true), whole_(0), fraction_(0)
+			{ }
+
+			Decimal(const Decimal &value) : positive_(value.positive_), whole_(value.whole_), fraction_(value.fraction_)
 			{ }
 
 			Decimal(int32_t value)
@@ -58,12 +78,15 @@ namespace tylawin
 				fraction_ = 0;
 			}
 
+			Decimal(uint64_t value) : positive_(true), whole_(value), fraction_(0)
+			{ }
+
 			Decimal(float value)
 			{
 				positive_ = (value >= 0);
 				value = fabsf(value);
 				whole_ = static_cast<uint64_t>(value);
-				fraction_ = static_cast<uint64_t>((value - whole_)*pow(10, 8));
+				fraction_ = static_cast<uint64_t>((value - whole_)*fractionDenominator_);
 			}
 
 			Decimal(double value)
@@ -71,15 +94,18 @@ namespace tylawin
 				positive_ = (value >= 0);
 				value = fabs(value);
 				whole_ = static_cast<uint64_t>(value);
-				fraction_ = static_cast<uint64_t>((value - whole_)*pow(10, 8));
+				fraction_ = static_cast<uint64_t>((value - whole_)*fractionDenominator_);
 			}
 
 			Decimal(long double value)
 			{
-				positive_ = (value >= 0);
+				std::stringstream sigDigits;
+				sigDigits << std::setprecision(std::numeric_limits<long double>::digits10 + 1) << value;
+				*this = Decimal(sigDigits.str());
+				/*positive_ = (value >= 0);
 				value = fabsl(value);
 				whole_ = static_cast<uint64_t>(value);
-				fraction_ = static_cast<uint64_t>((value - whole_)*pow(10, 8));
+				fraction_ = static_cast<uint64_t>((value - whole_)*fractionDenominator_);*/
 			}
 
 			Decimal(std::string value)
@@ -110,9 +136,9 @@ namespace tylawin
 				{
 					whole_ = std::stoull(value.substr(0, periodPos));
 					std::string tmp = value.substr(periodPos + 1);
-					if(tmp.size() > 8)
-						tmp = tmp.substr(0, 8);
-					while(tmp.size() < 8)
+					if(tmp.size() > FRACTION_DIGITS)
+						tmp = tmp.substr(0, FRACTION_DIGITS);
+					while(tmp.size() < FRACTION_DIGITS)
 						tmp += '0';
 					fraction_ = std::stoull(tmp);
 				}
@@ -144,7 +170,7 @@ namespace tylawin
 					positive_ = false;
 				value = abs(value);
 				whole_ = static_cast<uint64_t>(value);
-				fraction_ = static_cast<uint64_t>((value - whole_)*pow(10, 8));
+				fraction_ = static_cast<uint64_t>((value - whole_)*fractionDenominator_);
 				return *this;
 			}
 
@@ -213,10 +239,10 @@ namespace tylawin
 				{
 					whole_ += rhs.whole_;
 					fraction_ += rhs.fraction_;
-					while(fraction_ > 99999999)
+					while(fraction_ > maxValue_)
 					{
 						whole_ += 1;
-						fraction_ -= 100000000;
+						fraction_ -= fractionDenominator_;
 					}
 				}
 				else if(positive_ && !rhs.positive_)
@@ -267,7 +293,7 @@ namespace tylawin
 					else
 					{
 						whole_ -= 1;
-						fraction_ += 1 * uint64_t(pow(10, 8));
+						fraction_ += 1 * fractionDenominator_;
 						fraction_ -= rhs.fraction_;
 					}
 				}
@@ -282,21 +308,25 @@ namespace tylawin
 				else
 					ret.positive_ = false;
 				ret.whole_ *= rhs.whole_;
-				ret.fraction_ *= rhs.fraction_;
-				ret.fraction_ /= uint64_t(pow(10, 8));
-				uint64_t leftWholeRightFraction = whole_ * rhs.fraction_;
-				uint64_t tmp;
-				tmp = leftWholeRightFraction / pow(10, 8);
-				ret.whole_ += tmp;
-				ret.fraction_ += leftWholeRightFraction - tmp * pow(10, 8);
-				uint64_t rightWholeLeftFraction = rhs.whole_ * fraction_;
-				tmp = rightWholeLeftFraction / pow(10, 8);
-				ret.whole_ += tmp;
-				ret.fraction_ += rightWholeLeftFraction - tmp * pow(10, 8);
 
-				tmp = ret.fraction_ / pow(10, 8);
+				using namespace boost::multiprecision;
+
+				uint128_t frac = static_cast<uint128_t>(ret.fraction_) * rhs.fraction_;
+				frac /= static_cast<uint64_t>(fractionDenominator_);
+
+				uint128_t leftWholeRightFraction = static_cast<uint128_t>(whole_) * rhs.fraction_;
+				uint64_t tmp;
+				tmp = static_cast<uint64_t>(leftWholeRightFraction / fractionDenominator_);
 				ret.whole_ += tmp;
-				ret.fraction_ -= tmp * pow(10, 8);
+				frac += static_cast<uint64_t>(leftWholeRightFraction - static_cast<uint128_t>(tmp) * fractionDenominator_);
+				uint128_t rightWholeLeftFraction = static_cast<uint128_t>(rhs.whole_) * fraction_;
+				tmp = static_cast<uint64_t>(rightWholeLeftFraction / fractionDenominator_);
+				ret.whole_ += tmp;
+				frac += static_cast<uint64_t>(rightWholeLeftFraction - static_cast<uint128_t>(tmp) * fractionDenominator_);
+
+				tmp = static_cast<uint64_t>(frac / fractionDenominator_);
+				ret.whole_ += tmp;
+				ret.fraction_ = static_cast<uint64_t>(frac - static_cast<uint128_t>(tmp) * fractionDenominator_);
 				if(ret.whole_ == 0 && ret.fraction_ == 0)//fix edge case "-0"
 					ret.positive_ = true;
 				return ret;
@@ -308,6 +338,15 @@ namespace tylawin
 				return *this;
 			}
 
+			Decimal operator/(const uint64_t rhs) const
+			{
+				//Decimal ret(*this);
+				//if(rhs == 0)
+				//	throw std::runtime_error(__FILE__ ":" STR__LINE__ " - division by zero");
+				
+				return *this / Decimal(rhs);
+			}
+
 			Decimal operator/(const Decimal &rhs) const
 			{
 				Decimal ret(*this);
@@ -317,17 +356,26 @@ namespace tylawin
 					ret.positive_ = true;
 				else
 					ret.positive_ = false;
-				//if(rhs.whole_ > pow(10, 8))
+
+				using namespace boost::multiprecision;
+				//if(rhs.whole_ > pow(10, FRACTION_DIGITS))
 				//	throw std::runtime_error(__FILE__ ":" STR__LINE__ " - underflow");
-				int64_t numerator = whole_ * uint64_t(pow(10, 8)) + fraction_;
-				int64_t denominator = rhs.whole_ * uint64_t(pow(10, 8)) + rhs.fraction_;
-				auto res = std::div(numerator, denominator);
-				ret.whole_ = res.quot;
-				ret.fraction_ = res.rem * int64_t(pow(10, 8)) / denominator;//truncate
+				uint128_t numerator = static_cast<uint128_t>(whole_) * fractionDenominator_ + fraction_;
+				uint128_t denominator = static_cast<uint128_t>(rhs.whole_) * fractionDenominator_ + rhs.fraction_;
+				uint128_t quot, rem;
+				divide_qr(numerator, denominator, quot, rem);
+				ret.whole_ = static_cast<uint64_t>(quot);
+				ret.fraction_ = static_cast<uint64_t>(rem * static_cast<uint256_t>(fractionDenominator_) / denominator);//truncate
 				//rounding at half 1.0000'0000'5
-				//	res = std::div(res.rem * int64_t(pow(10, 8)), denominator);
+				//	res = std::div(res.rem * int64_t(pow(10, FRACTION_DIGITS)), denominator);
 				//	ret.fraction_ = res.quot + (res.rem * 2 > denominator ? 1 : 0);
 				return ret;
+			}
+
+			Decimal operator/=(uint64_t rhs)
+			{
+				*this = *this / rhs;
+				return *this;
 			}
 
 			Decimal operator/=(const Decimal &rhs)
@@ -370,7 +418,7 @@ namespace tylawin
 					is >> ch;
 					if(missingWhole && !(is.peek() >= '0' && is.peek() <= '9'))
 						throw std::invalid_argument(__FILE__ ":" STR__LINE__ " - operator>> failed");
-					size_t m = 7;
+					size_t m = FRACTION_DIGITS-1;
 					rhs.fraction_ = 0;
 					while(is.peek() >= '0' && is.peek() <= '9')
 					{
@@ -424,7 +472,7 @@ namespace tylawin
 					is >> ch;
 					if(missingWhole && !(is.peek() >= L'0' && is.peek() <= L'9'))
 						throw std::invalid_argument(__FILE__ ":" STR__LINE__ " - operator>> failed");
-					size_t m = 7;
+					size_t m = FRACTION_DIGITS-1;
 					rhs.fraction_ = 0;
 					while(is.peek() >= L'0' && is.peek() <= L'9')
 					{
@@ -442,7 +490,7 @@ namespace tylawin
 #endif
 			long double asDouble() const
 			{
-				return whole_ + (long double)(fraction_) / 100000000llu;
+				return whole_ + (long double)(fraction_) / fractionDenominator_;
 			}
 
 			std::string asString() const //TODO: make private, swap implementation with operator>>, use to_string outside class
@@ -457,7 +505,7 @@ namespace tylawin
 		private:
 			void round(int digits)// for 2.2222: -1 would be 2.2  &  1 would be 2
 			{
-				if(digits < -8 || digits > 20)
+				if(digits < -FRACTION_DIGITS || digits > 20)
 					throw std::invalid_argument(__FILE__ ":" STR__LINE__ " - round failed");
 				if(digits >= 0)
 				{
@@ -467,7 +515,7 @@ namespace tylawin
 				}
 				else
 				{
-					digits = 8 - abs(digits);
+					digits = FRACTION_DIGITS - abs(digits);
 					fraction_ = uint64_t(fraction_ / pow(10, digits)) * int64_t(pow(10, digits));
 				}
 			}
@@ -478,7 +526,7 @@ namespace tylawin
 					return "0";
 
 				std::string res = std::to_string(fraction_);
-				while(res.size() < 8)
+				while(res.size() < FRACTION_DIGITS)
 					res = "0" + res;
 				while(res.size() > 0 && res.back() == '0')
 					res.pop_back();
@@ -487,16 +535,15 @@ namespace tylawin
 
 			bool positive_;
 			uint64_t whole_;
-			uint64_t fraction_;//8 places
+			uint64_t fraction_;
 		};
 
-		Decimal operator/(int64_t lhs, const Decimal &rhs)
+		Decimal operator/(const int64_t lhs, const Decimal &rhs)
 		{
-			Decimal ret = Decimal(lhs) / rhs;
-			return ret;
+			return Decimal(lhs) / rhs;
 		}
 
-		std::string to_string(const Decimal &amount, size_t precision = 8)//TODO: if no precision default format (remove '0' at end...)
+		std::string to_string(const Decimal &amount, size_t precision = Decimal::FRACTION_DIGITS)//TODO: if no precision default format (remove '0' at end...)
 		{
 			std::stringstream tmpss;
 			tmpss << amount;
