@@ -23,18 +23,13 @@ limitations under the License.
 #include <string>
 #include <sstream>
 #include <cstdint>
-#ifdef _WIN32
-#include <codecvt>
-#endif
 
 #include <boost/multiprecision/cpp_int.hpp>
+#include <boost/optional.hpp>
 
 #define PREPROCESSOR_STRINGIZE_A(x) #x
 #define PREPROCESSOR_STRINGIZE(x) PREPROCESSOR_STRINGIZE_A(x)
 #define STR__LINE__ PREPROCESSOR_STRINGIZE(__LINE__)
-
-#define fractionDenominator_ 10000000000000000000ULL
-#define maxValue_ 9999999999999999999ULL
 
 namespace tylawin
 {
@@ -43,16 +38,11 @@ namespace tylawin
 		class Decimal
 		{
 		private:
-			//link errors on RPI
-			//static const uint64_t fractionDenominator_ = pow(10, DECIMAL_FRACTION_DIGITS);
-			//static const uint64_t maxValue_ = pow(10, DECIMAL_FRACTION_DIGITS)-1;
+			static const constexpr uint16_t FRACTION_DIGITS = 19;
+			static const constexpr uint64_t fractionDenominator_ = std::pow(10, FRACTION_DIGITS);
+			static const constexpr uint64_t maxValue_ = fractionDenominator_ - 1;
 
 		public:
-			enum
-			{
-				FRACTION_DIGITS = 19
-			};
-
 			Decimal() : positive_(true), whole_(0), fraction_(0)
 			{ }
 
@@ -102,10 +92,6 @@ namespace tylawin
 				std::stringstream sigDigits;
 				sigDigits << std::setprecision(std::numeric_limits<long double>::digits10 + 1) << value;
 				*this = Decimal(sigDigits.str());
-				/*positive_ = (value >= 0);
-				value = fabsl(value);
-				whole_ = static_cast<uint64_t>(value);
-				fraction_ = static_cast<uint64_t>((value - whole_)*fractionDenominator_);*/
 			}
 
 			Decimal(std::string value)
@@ -147,13 +133,7 @@ namespace tylawin
 			{
 				*this = Decimal(std::string(value));
 			}
-#ifdef _WIN32
-			Decimal(const std::wstring &value)
-			{
-				std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> converter;
-				*this = Decimal(converter.to_bytes(value));
-			}
-#endif
+
 			const Decimal& operator=(const Decimal rhs)
 			{
 				positive_ = rhs.positive_;
@@ -340,10 +320,6 @@ namespace tylawin
 
 			Decimal operator/(const uint64_t rhs) const
 			{
-				//Decimal ret(*this);
-				//if(rhs == 0)
-				//	throw std::runtime_error(__FILE__ ":" STR__LINE__ " - division by zero");
-				
 				return *this / Decimal(rhs);
 			}
 
@@ -358,17 +334,12 @@ namespace tylawin
 					ret.positive_ = false;
 
 				using namespace boost::multiprecision;
-				//if(rhs.whole_ > pow(10, FRACTION_DIGITS))
-				//	throw std::runtime_error(__FILE__ ":" STR__LINE__ " - underflow");
 				uint128_t numerator = static_cast<uint128_t>(whole_) * fractionDenominator_ + fraction_;
 				uint128_t denominator = static_cast<uint128_t>(rhs.whole_) * fractionDenominator_ + rhs.fraction_;
 				uint128_t quot, rem;
 				divide_qr(numerator, denominator, quot, rem);
 				ret.whole_ = static_cast<uint64_t>(quot);
 				ret.fraction_ = static_cast<uint64_t>(rem * static_cast<uint256_t>(fractionDenominator_) / denominator);//truncate
-				//rounding at half 1.0000'0000'5
-				//	res = std::div(res.rem * int64_t(pow(10, FRACTION_DIGITS)), denominator);
-				//	ret.fraction_ = res.quot + (res.rem * 2 > denominator ? 1 : 0);
 				return ret;
 			}
 
@@ -433,73 +404,10 @@ namespace tylawin
 					rhs.fraction_ = 0;
 				return is;
 			}
-#ifdef _WIN32
-			friend std::wostream& operator<<(std::wostream& os, const Decimal &rhs)
-			{
-				if(!rhs.positive_)
-					os << L'-';
-				os << rhs.whole_;
-				if(rhs.fraction_ > 0)
-				{
-					std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> converter;
-					os << L'.' << converter.from_bytes(rhs.fractionAsString());
-				}
-				return os;
-			}
 
-			friend std::wistream& operator >> (std::wistream& is, Decimal &rhs)
-			{
-				wchar_t ch;
-				if(is.peek() == L'-')
-				{
-					rhs.positive_ = false;
-					is >> ch;
-				}
-				else
-					rhs.positive_ = true;
-
-				bool missingWhole = false;
-				if(is.peek() == '.')
-				{
-					rhs.whole_ = 0;
-					missingWhole = true;
-				}
-				else
-					is >> rhs.whole_;
-
-				if(is.peek() == L'.')
-				{
-					is >> ch;
-					if(missingWhole && !(is.peek() >= L'0' && is.peek() <= L'9'))
-						throw std::invalid_argument(__FILE__ ":" STR__LINE__ " - operator>> failed");
-					size_t m = FRACTION_DIGITS-1;
-					rhs.fraction_ = 0;
-					while(is.peek() >= L'0' && is.peek() <= L'9')
-					{
-						is >> ch;
-						rhs.fraction_ += uint32_t(ch - L'0') * uint64_t(pow(10, m));
-						if(m == 0)
-							break;
-						m--;
-					}
-				}
-				else
-					rhs.fraction_ = 0;
-				return is;
-			}
-#endif
 			long double asDouble() const
 			{
 				return whole_ + (long double)(fraction_) / fractionDenominator_;
-			}
-
-			std::string asString() const //TODO: make private, swap implementation with operator>>, use to_string outside class
-			{
-				std::stringstream ss;
-				ss << *this;
-				std::string tmp;
-				ss >> tmp;
-				return tmp;
 			}
 
 		private:
@@ -538,24 +446,44 @@ namespace tylawin
 			uint64_t fraction_;
 		};
 
+		const constexpr uint16_t Decimal::FRACTION_DIGITS;
+		const constexpr uint64_t Decimal::fractionDenominator_;
+		const constexpr uint64_t Decimal::maxValue_;
+
 		Decimal operator/(const int64_t lhs, const Decimal &rhs)
 		{
 			return Decimal(lhs) / rhs;
 		}
 
-		std::string to_string(const Decimal &amount, size_t precision = Decimal::FRACTION_DIGITS)//TODO: if no precision default format (remove '0' at end...)
+		std::string to_string(const Decimal &amount, boost::optional<size_t> precision = boost::none)
 		{
 			std::stringstream tmpss;
 			tmpss << amount;
 			std::string tmp;
 			tmpss >> tmp;
-			size_t pos = tmp.find('.');
-			if(pos == std::string::npos)
+
+			if(!precision)
 				return tmp;
-			else if(precision == 0)
-				return tmp.substr(0, pos);
+
+			size_t pos = tmp.find('.');
+			if(*precision == 0)
+			{
+				if(pos == std::string::npos)
+					return tmp;
+				else
+					return tmp.substr(0, pos);
+			}
+			if(pos == std::string::npos)
+			{
+				tmp += '.';
+				pos = tmp.find('.');
+			}
+			while(tmp.size() < pos + 1 + *precision)
+				tmp += '0';
+			if(tmp.size() > pos + 1 + *precision)
+				return tmp.substr(0, pos + 1 + *precision);
 			else
-				return tmp.substr(0, pos + 1 + precision);
+				return tmp;
 		}
 	}
 }
