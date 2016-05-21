@@ -45,7 +45,7 @@ namespace tylawin
 		{
 		private:
 			static const constexpr uint16_t FRACTION_DIGITS = 19;
-			static const constexpr uint64_t fractionDenominator_ = constexpr_pow(10, FRACTION_DIGITS);
+			static const constexpr uint64_t fractionDenominator_ = constexpr_pow(10ULL, FRACTION_DIGITS);
 			static const constexpr uint64_t maxValue_ = fractionDenominator_ - 1;
 
 		public:
