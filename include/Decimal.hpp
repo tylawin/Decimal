@@ -33,13 +33,19 @@ limitations under the License.
 
 namespace tylawin
 {
+	template<typename T>
+	constexpr T constexpr_pow(T x, uint8_t y)
+	{
+		return y ? x * constexpr_pow(x, y - 1) : 1;
+	}
+
 	namespace DataTypes
 	{
 		class Decimal
 		{
 		private:
 			static const constexpr uint16_t FRACTION_DIGITS = 19;
-			static const constexpr uint64_t fractionDenominator_ = std::pow(10, FRACTION_DIGITS);
+			static const constexpr uint64_t fractionDenominator_ = constexpr_pow(10, FRACTION_DIGITS);
 			static const constexpr uint64_t maxValue_ = fractionDenominator_ - 1;
 
 		public:
@@ -389,12 +395,12 @@ namespace tylawin
 					is >> ch;
 					if(missingWhole && !(is.peek() >= '0' && is.peek() <= '9'))
 						throw std::invalid_argument(__FILE__ ":" STR__LINE__ " - operator>> failed");
-					size_t m = FRACTION_DIGITS-1;
+					uint8_t m = FRACTION_DIGITS-1;
 					rhs.fraction_ = 0;
 					while(is.peek() >= '0' && is.peek() <= '9')
 					{
 						is >> ch;
-						rhs.fraction_ += uint8_t(ch - '0') * uint64_t(pow(10, m));
+						rhs.fraction_ += uint8_t(ch - '0') * uint64_t(constexpr_pow(10, m));
 						if(m == 0)
 							break;
 						m--;
@@ -411,7 +417,7 @@ namespace tylawin
 			}
 
 		private:
-			void round(int digits)// for 2.2222: -1 would be 2.2  &  1 would be 2
+			void round(int8_t digits)// for 2.2222: -1 would be 2.2  &  1 would be 2
 			{
 				if(digits < -FRACTION_DIGITS || digits > 20)
 					throw std::invalid_argument(__FILE__ ":" STR__LINE__ " - round failed");
@@ -419,12 +425,12 @@ namespace tylawin
 				{
 					fraction_ = 0;
 					if(digits > 0)
-						whole_ = uint64_t(whole_ / pow(10, digits)) * int64_t(pow(10, digits));
+						whole_ = uint64_t(whole_ / constexpr_pow(10, (uint8_t)digits)) * int64_t(constexpr_pow(10, (uint8_t)digits));
 				}
 				else
 				{
 					digits = FRACTION_DIGITS - abs(digits);
-					fraction_ = uint64_t(fraction_ / pow(10, digits)) * int64_t(pow(10, digits));
+					fraction_ = uint64_t(fraction_ / constexpr_pow(10, (uint8_t)digits)) * int64_t(constexpr_pow(10, (uint8_t)digits));
 				}
 			}
 
