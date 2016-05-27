@@ -96,14 +96,14 @@ namespace tylawin
 			Decimal(long double value)
 			{
 				std::stringstream sigDigits;
-				sigDigits << std::setprecision(std::numeric_limits<long double>::digits10 + 1) << value;
+				sigDigits << std::fixed << std::setprecision(std::numeric_limits<long double>::digits10 + 1) << value;
 				*this = Decimal(sigDigits.str());
 			}
 
 			Decimal(std::string value)
 			{
 				if(value.find_first_not_of("-01234.56789") != std::string::npos)
-					throw std::invalid_argument(__FILE__ ":" STR__LINE__ " - string constructor failed.");
+					throw std::invalid_argument(__FILE__ ":" STR__LINE__ " - string constructor failed. value(" + value + ")");
 				if(value.size() == 0)
 					value = "0";
 
