@@ -150,7 +150,7 @@ namespace tylawin
 				*this = Decimal(std::string(value));
 			}
 
-			const Decimal& operator=(const Decimal rhs)
+			const Decimal& operator=(const Decimal &rhs)
 			{
 				positive_ = rhs.positive_;
 				whole_ = rhs.whole_;
