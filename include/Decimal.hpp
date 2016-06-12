@@ -79,24 +79,34 @@ namespace tylawin
 
 			Decimal(float value)
 			{
-				positive_ = (value >= 0);
-				value = fabsf(value);
-				whole_ = static_cast<uint64_t>(value);
-				fraction_ = static_cast<uint64_t>((value - whole_)*fractionDenominator_);
+				std::stringstream sigDigits;
+				uint64_t whole = static_cast<uint64_t>(abs(value));
+				uint8_t wholeDigits;
+				for(wholeDigits = 0; whole > 0; ++wholeDigits)
+					whole /= 10;
+				sigDigits << std::fixed << std::setprecision(std::numeric_limits<float>::digits10 - wholeDigits) << value;
+				*this = Decimal(sigDigits.str());
 			}
 
 			Decimal(double value)
 			{
-				positive_ = (value >= 0);
-				value = fabs(value);
-				whole_ = static_cast<uint64_t>(value);
-				fraction_ = static_cast<uint64_t>((value - whole_)*fractionDenominator_);
+				std::stringstream sigDigits;
+				uint64_t whole = static_cast<uint64_t>(abs(value));
+				uint8_t wholeDigits;
+				for(wholeDigits = 0; whole > 0; ++wholeDigits)
+					whole /= 10;
+				sigDigits << std::fixed << std::setprecision(std::numeric_limits<double>::digits10 - wholeDigits) << value;
+				*this = Decimal(sigDigits.str());
 			}
 
 			Decimal(long double value)
 			{
 				std::stringstream sigDigits;
-				sigDigits << std::fixed << std::setprecision(std::numeric_limits<long double>::digits10 + 1) << value;
+				uint64_t whole = static_cast<uint64_t>(abs(value));
+				uint8_t wholeDigits;
+				for(wholeDigits = 0; whole > 0; ++wholeDigits)
+					whole /= 10;
+				sigDigits << std::fixed << std::setprecision(std::numeric_limits<long double>::digits10 - wholeDigits) << value;
 				*this = Decimal(sigDigits.str());
 			}
 
@@ -400,7 +410,7 @@ namespace tylawin
 					while(is.peek() >= '0' && is.peek() <= '9')
 					{
 						is >> ch;
-						rhs.fraction_ += uint8_t(ch - '0') * uint64_t(constexpr_pow(10, m));
+						rhs.fraction_ += uint8_t(ch - '0') * constexpr_pow(10ULL, m);
 						if(m == 0)
 							break;
 						m--;
@@ -425,12 +435,12 @@ namespace tylawin
 				{
 					fraction_ = 0;
 					if(digits > 0)
-						whole_ = uint64_t(whole_ / constexpr_pow(10, (uint8_t)digits)) * int64_t(constexpr_pow(10, (uint8_t)digits));
+						whole_ = uint64_t(whole_ / constexpr_pow(10, static_cast<uint8_t>(digits))) * constexpr_pow(10LL, static_cast<uint8_t>(digits));
 				}
 				else
 				{
 					digits = FRACTION_DIGITS - abs(digits);
-					fraction_ = uint64_t(fraction_ / constexpr_pow(10, (uint8_t)digits)) * int64_t(constexpr_pow(10, (uint8_t)digits));
+					fraction_ = uint64_t(fraction_ / constexpr_pow(10, static_cast<uint8_t>(digits))) * constexpr_pow(10LL, static_cast<uint8_t>(digits));
 				}
 			}
 
